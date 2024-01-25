@@ -13,7 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import NoSuchElementException
 from termcolor import cprint
-
+import openpyxl
 
 METAMASK_EXT = 'chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn'
 XPATH_INPUT_UNLOCK = '//*[@data-testid="unlock-password"]'
@@ -302,9 +302,9 @@ def main(zero, ads_id, seed, password):
         # ============================= if you don't need to add a networks, delete everything below ===================
         time.sleep(2)
         # add_network(driver, 'Holesky')
-        add_network(driver, 'Taiko')
+        # add_network(driver, 'Taiko')
         # add_network(driver, 'Optimism')
-        # add_network(driver, 'Arbitrum')
+        add_network(driver, 'Polygon')
         # ==============================================================================================================
 
         driver.quit()
@@ -319,13 +319,33 @@ def main(zero, ads_id, seed, password):
         raise  # This line will re-raise the exception
 
 
-with open("id_users.txt", "r") as f:
-    id_users = [row.strip() for row in f]
+book = openpyxl.load_workbook("MM.xlsx")
+sheet = book.active
 
-with open("seeds.txt", "r") as f:
-    seeds = [row.strip() for row in f]
+# Read IDs and seeds from the Excel sheet
+id_users = []
+seeds = []
+for row in sheet.iter_rows(min_row=2, max_col=4, values_only=True):
+    mnemonic, _, _, ads_id = row
+    if ads_id and mnemonic:
+        id_users.append(ads_id)
+        seeds.append(mnemonic)
 
-password_metamask = 'Aura1234!'  # password for metamask
+# Close the workbook
+book.close()
+
+password_metamask = 'Aura1234!'  # password for MetaMask
+
+# with open("id_users.txt", "r") as f:
+#     id_users = [row.strip() for row in f]
+
+# with open("seeds.txt", "r") as f:
+#     seeds = [row.strip() for row in f]
+
+# password_metamask = 'Aura1234!'  # password for metamask
 
 for i, adspower_id in enumerate(id_users):
-    main(i, adspower_id, seeds[i], password_metamask)
+    if i < len(seeds):  # Check if there is a corresponding seed
+        main(i, adspower_id, seeds[i], password_metamask)
+    else:
+        print(f"No seed available for user ID {adspower_id}")
