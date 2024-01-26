@@ -15,6 +15,9 @@ from selenium.common.exceptions import NoSuchElementException
 from termcolor import cprint
 import openpyxl
 
+from holesky import holeskyC
+
+
 METAMASK_EXT = 'chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn'
 XPATH_INPUT_UNLOCK = '//*[@data-testid="unlock-password"]'
 XPATH_UNLOCK = '//*[@data-testid="unlock-submit"]'
@@ -148,7 +151,7 @@ def add_network(driver, name_network):
         paste(driver, NETWORKS[name_network]['chain_id'],  "//h6[contains(text(), 'ID мережі')]/ancestor::label//input")
 
         # Currency Symbol
-        
+
         click(driver,  XPATH_SUGGESTED_ID)
         # EXPLORER
         click(driver,  "//h6[contains(text(), 'Блокувати Explorer')]/ancestor::label//input")
@@ -215,7 +218,7 @@ def add_network(driver, name_network):
 
 #         # Update the xpath to point to the next input field, if necessary
 #         # xpath = ... (update if necessary)
-        
+
 def input_seed_phrase(driver, base_xpath, seed):
     words = seed.split()  # Split the seed phrase into individual words
     if len(words) != 12:
@@ -242,7 +245,7 @@ def onboard(driver, seed, password):
         click(driver, base_xpath.format(0))  # Click on the first input field to ensure focus
         input_seed_phrase(driver, base_xpath, seed)
         # click(driver, XPATH_INPUTS_MNEMONIC)     # CLICK input for mnemonic (first one)
-        # input_seed_phrase(driver, XPATH_INPUTS_MNEMONIC, seed)  
+        # input_seed_phrase(driver, XPATH_INPUTS_MNEMONIC, seed)
         # paste(driver, seed)                      # PASTE 'mnemonic'
         click(driver, XPATH_CONFIRM_MNEMONIC)    # CLICK button "Confirm Secret Recovery Phrase"
         click(driver, XPATH_INPUT_PASS)          # CLICK input "New password (8 characters min)"
@@ -275,13 +278,13 @@ def unlock(driver, password):
             click(driver, XPATH_PIN_EXT_DONE)
         if search(driver, By.XPATH, XPATH_POPUP_CLOSE):
             click(driver, XPATH_POPUP_CLOSE)
-        
+
     except Exception:
         cprint(f'❌ error during MetaMask unlock flow', 'yellow')
         raise  # This line will re-raise the exception
 
 
-def main(zero, ads_id, seed, password):
+def main(zero, ads_id, seed, wallet, password):
     close_url = "http://local.adspower.net:50325/api/v1/browser/stop?user_id=" + ads_id
     driver = None
     try:
@@ -289,26 +292,27 @@ def main(zero, ads_id, seed, password):
 
         driver.get(f'{METAMASK_EXT}/home.html')            # Open MetaMask plugin, should be already installed
 
-        if search(driver, By.XPATH, XPATH_IMPORT_WALLET):  # IMPORT SEED IF FIRST RUN OF METAMASK
-            cprint(f'🆕 {zero + 1}. {ads_id}: onboard flow', 'white')
-            onboard(driver, seed, password)
-        elif search(driver, By.XPATH, XPATH_UNLOCK):       # UNLOCK METAMASK WITH PASSWORD IF ALREADY EXIST
-            cprint(f'🔑 {zero + 1}. {ads_id}: unlock flow', 'white')
-            unlock(driver, password)
-        else:
-            raise NoSuchElementException(f"❌ Element with xpath '{XPATH_IMPORT_WALLET}' "
-                                         f"and '{XPATH_UNLOCK}' not found.")
+#         if search(driver, By.XPATH, XPATH_IMPORT_WALLET):  # IMPORT SEED IF FIRST RUN OF METAMASK
+#             cprint(f'🆕 {zero + 1}. {ads_id}: onboard flow', 'white')
+#             onboard(driver, seed, password)
+#         elif search(driver, By.XPATH, XPATH_UNLOCK):       # UNLOCK METAMASK WITH PASSWORD IF ALREADY EXIST
+#             cprint(f'🔑 {zero + 1}. {ads_id}: unlock flow', 'white')
+#             unlock(driver, password)
+#         else:
+#             raise NoSuchElementException(f"❌ Element with xpath '{XPATH_IMPORT_WALLET}' "
+#                                          f"and '{XPATH_UNLOCK}' not found.")
 
         # ============================= if you don't need to add a networks, delete everything below ===================
         time.sleep(2)
-        # add_network(driver, 'Holesky')
-        # add_network(driver, 'Taiko')
+        holeskyC(driver, wallet)
+#         add_network(driver, 'Holesky')
+#         add_network(driver, 'Taiko')
         # add_network(driver, 'Optimism')
-        add_network(driver, 'Polygon')
+#         add_network(driver, 'Polygon')
         # ==============================================================================================================
 
-        driver.quit()
-        requests.get(close_url)
+#         driver.quit()
+#         requests.get(close_url)
 
         cprint(f'✅ {zero + 1}. {ads_id} = done', 'green')
 
@@ -319,17 +323,20 @@ def main(zero, ads_id, seed, password):
         raise  # This line will re-raise the exception
 
 
-book = openpyxl.load_workbook("MM.xlsx")
+book = openpyxl.load_workbook("MMM.xlsx")
 sheet = book.active
 
 # Read IDs and seeds from the Excel sheet
 id_users = []
 seeds = []
+wallets = []
 for row in sheet.iter_rows(min_row=2, max_col=4, values_only=True):
-    mnemonic, _, _, ads_id = row
+    mnemonic, wallet, _, ads_id = row
     if ads_id and mnemonic:
         id_users.append(ads_id)
         seeds.append(mnemonic)
+        wallets.append(wallet)
+
 
 # Close the workbook
 book.close()
@@ -346,6 +353,6 @@ password_metamask = 'Aura1234!'  # password for MetaMask
 
 for i, adspower_id in enumerate(id_users):
     if i < len(seeds):  # Check if there is a corresponding seed
-        main(i, adspower_id, seeds[i], password_metamask)
+        main(i, adspower_id, seeds[i], wallets[i], password_metamask)
     else:
         print(f"No seed available for user ID {adspower_id}")
